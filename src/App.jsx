@@ -9,6 +9,8 @@ import AboutPage from './pages/AboutPage'
 import CarDetailPage from './pages/CarDetailPage'
 import PaymentSuccessPage from './pages/PaymentSuccessPage'
 import PaymentCancelPage from './pages/PaymentCancelPage'
+import UserProfilePage from './pages/UserProfilePage'
+import UserRentalsPage from './pages/UserRentalsPage'
 function App() {
 
   const { isAuthenticated } = useSelector((state) => state.auth)
@@ -28,6 +30,8 @@ function App() {
       <Route path='register/' element={<PublicOnly><RegisterPage/></PublicOnly>}/>
       <Route path='/' element={<RequireAuth><HomePage/></RequireAuth>}/>
       <Route path='dashboard/' element={<RequireAuth><DashboardPage/></RequireAuth>}/>
+      <Route path='profile/' element={<RequireAuth><UserProfilePage/></RequireAuth>}/>
+      <Route path='my-rentals/' element={<RequireAuth><UserRentalsPage/></RequireAuth>}/>
       <Route path='activate/' element={<ActivateAccountPage/>}/>
       <Route path='about/' element={<AboutPage/>}/>
       <Route path='cars/:slug' element={<RequireAuth><CarDetailPage/></RequireAuth>}/>

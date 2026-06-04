@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import Navbar from "../components/Navbar";
@@ -44,14 +44,42 @@ const buildImageSources = (url) => {
 const HomePage = () => {
   const dispatch = useDispatch();
   const { cars, status, error, page, totalPages } = useSelector((state) => state.rental);
+  const [filters, setFilters] = useState({ startDate: "", endDate: "" });
+  const [appliedFilters, setAppliedFilters] = useState({ startDate: "", endDate: "" });
+  const [searchError, setSearchError] = useState("");
+  const isResetDisabled = !appliedFilters.startDate && !appliedFilters.endDate;
 
   useEffect(() => {
-    dispatch(fetchCars(page || 1));
-  }, [dispatch, page]);
+    dispatch(fetchCars({ page: 1 }));
+  }, [dispatch]);
 
   const handlePageChange = (nextPage) => {
     if (nextPage < 1 || nextPage > totalPages) return;
-    dispatch(fetchCars(nextPage));
+    dispatch(fetchCars({ page: nextPage, ...appliedFilters }));
+  };
+
+  const handleFilterChange = (event) => {
+    const { name, value } = event.target;
+    setFilters((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSearch = (event) => {
+    event.preventDefault();
+    if (!filters.startDate || !filters.endDate) {
+      setSearchError("Please select both a start date and an end date.");
+      return;
+    }
+    setSearchError("");
+    setAppliedFilters(filters);
+    dispatch(fetchCars({ page: 1, ...filters }));
+  };
+
+  const handleReset = () => {
+    const cleared = { startDate: "", endDate: "" };
+    setFilters(cleared);
+    setAppliedFilters(cleared);
+    setSearchError("");
+    dispatch(fetchCars({ page: 1 }));
   };
 
   return (
@@ -76,6 +104,67 @@ const HomePage = () => {
             </div>
           </header>
 
+          <form onSubmit={handleSearch} className="mb-6">
+            <div className="rounded-3xl border border-emerald-500/20 bg-gradient-to-r from-emerald-500/10 via-slate-900/70 to-slate-900/40 p-5 md:p-6">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-4">
+                <div>
+                  <h3 className="text-lg font-semibold">Search by rental dates</h3>
+                  <p className="text-sm text-slate-300">Pick a start and end date to see cars available for your full trip.</p>
+                </div>
+                <div className="text-xs uppercase tracking-[0.2em] text-emerald-300">Availability</div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-3">
+                <label className="flex flex-col gap-2 text-sm text-slate-300">
+                  Start date
+                  <input
+                    type="date"
+                    name="startDate"
+                    value={filters.startDate}
+                    onChange={handleFilterChange}
+                    className="rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </label>
+                <label className="flex flex-col gap-2 text-sm text-slate-300">
+                  End date
+                  <input
+                    type="date"
+                    name="endDate"
+                    value={filters.endDate}
+                    onChange={handleFilterChange}
+                    className="rounded-xl border border-slate-700 bg-slate-900/70 px-3 py-2 text-slate-100 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </label>
+                <div className="flex flex-col md:flex-row md:items-end gap-2">
+                  <button
+                    type="submit"
+                    className="w-full md:w-auto px-4 py-2 text-sm md:px-5 md:py-2.5 md:text-base rounded-xl bg-emerald-500 text-black font-semibold hover:bg-emerald-600 transition"
+                  >
+                    Search availability
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleReset}
+                    disabled={isResetDisabled}
+                    className="w-full md:w-auto px-4 py-2 text-sm md:px-5 md:py-2.5 md:text-base rounded-xl border border-slate-700 bg-slate-800/70 text-slate-200 hover:border-emerald-500/60 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:border-slate-700 disabled:hover:text-slate-200 transition"
+                  >
+                    Reset
+                  </button>
+                </div>
+              </div>
+
+              <div className="mt-3 text-xs text-slate-400">Tip: results update after you press Search.</div>
+              {searchError && (
+                <div className="mt-3 text-sm text-red-300">{searchError}</div>
+              )}
+              {appliedFilters.startDate && appliedFilters.endDate && (
+                <div className="mt-3 text-sm text-emerald-300">
+                  Showing availability for {appliedFilters.startDate} to {appliedFilters.endDate}.
+                </div>
+              )}
+            </div>
+          </form>
+
           {status === "loading" && (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" aria-live="polite">
               {Array.from({ length: 6 }).map((_, idx) => (
@@ -89,7 +178,7 @@ const HomePage = () => {
           )}
 
           {status === "succeeded" && cars.length === 0 && (
-            <div className="text-center text-slate-300">No cars available right now.</div>
+            <div className="text-center text-slate-300">No cars available for the selected dates.</div>
           )}
 
           {cars.length > 0 && (

@@ -45,13 +45,33 @@ export default function Navbar() {
             </Link>
 
             {isAuthenticated ? (
-              <button
-                onClick={()=>handleLogout()}
-                className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl transition duration-200"
-              >
-                <LogOut size={18} />
-                Logout
-              </button>
+              <>
+                <Link
+                  to="/dashboard/"
+                  className="hover:text-white transition duration-200"
+                >
+                  Dashboard
+                </Link>
+                <Link
+                  to="/my-rentals/"
+                  className="hover:text-white transition duration-200"
+                >
+                  My Rentals
+                </Link>
+                <Link
+                  to="/profile/"
+                  className="hover:text-white transition duration-200"
+                >
+                  Profile
+                </Link>
+                <button
+                  onClick={()=>handleLogout()}
+                  className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl transition duration-200"
+                >
+                  <LogOut size={18} />
+                  Logout
+                </button>
+              </>
             ) : (
               <Link
                 to="/login"
@@ -95,14 +115,36 @@ export default function Navbar() {
             </Link>
 
             {isAuthenticated ? (
-              <button
-                
-                onClick={()=>handleLogout()}
-                className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl transition w-fit"
-              >
-                <LogOut size={18} />
-                Logout
-              </button>
+              <>
+                <Link
+                  to="/dashboard/"
+                  onClick={() => setIsOpen(false)}
+                  className="hover:text-white transition"
+                >
+                  Dashboard
+                </Link>
+                <Link
+                  to="/my-rentals/"
+                  onClick={() => setIsOpen(false)}
+                  className="hover:text-white transition"
+                >
+                  My Rentals
+                </Link>
+                <Link
+                  to="/profile/"
+                  onClick={() => setIsOpen(false)}
+                  className="hover:text-white transition"
+                >
+                  Profile
+                </Link>
+                <button
+                  onClick={()=>handleLogout()}
+                  className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-xl transition w-fit"
+                >
+                  <LogOut size={18} />
+                  Logout
+                </button>
+              </>
             ) : (
               <Link
                 to="/login"

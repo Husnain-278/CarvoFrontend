@@ -10,8 +10,11 @@ const rentalSlice = createSlice({
                 error: null,
                 page: 1,
                 totalPages: 1,
-                pageSize: 10,
+                pageSize: 9,
                 totalCount: 0,
+                branches: [],
+                branchesStatus: "idle",
+                branchesError: null,
                 selectedCar: null,
                 selectedCarStatus: "idle",
                 selectedCarError: null,
@@ -19,6 +22,9 @@ const rentalSlice = createSlice({
                 bookingError: null,
                 bookingResult: null,
                 paypalApprovalUrl: null,
+                userRentals: [],
+                userRentalsStatus: "idle",
+                userRentalsError: null,
     },
     reducers:{
                 setCars: (state, action)=>{
@@ -52,6 +58,18 @@ const rentalSlice = createSlice({
                     state.selectedCarStatus = "failed";
                     state.selectedCarError = action.payload || "Unable to fetch car details";
                 },
+                fetchBranchesStart: (state) => {
+                    state.branchesStatus = "loading";
+                    state.branchesError = null;
+                },
+                fetchBranchesSuccess: (state, action) => {
+                    state.branchesStatus = "succeeded";
+                    state.branches = action.payload || [];
+                },
+                fetchBranchesFailure: (state, action) => {
+                    state.branchesStatus = "failed";
+                    state.branchesError = action.payload || "Unable to fetch branches";
+                },
                 bookRentalStart: (state) => {
                     state.bookingStatus = "loading";
                     state.bookingError = null;
@@ -73,6 +91,18 @@ const rentalSlice = createSlice({
                     state.bookingResult = null;
                     state.paypalApprovalUrl = null;
                 },
+                fetchUserRentalsStart: (state) => {
+                    state.userRentalsStatus = "loading";
+                    state.userRentalsError = null;
+                },
+                fetchUserRentalsSuccess: (state, action) => {
+                    state.userRentalsStatus = "succeeded";
+                    state.userRentals = action.payload || [];
+                },
+                fetchUserRentalsFailure: (state, action) => {
+                    state.userRentalsStatus = "failed";
+                    state.userRentalsError = action.payload || "Unable to fetch rentals";
+                },
         }
 })
 
@@ -80,15 +110,25 @@ export const {
     setCars,
     fetchCarsStart, fetchCarsSuccess, fetchCarsFailure,
     fetchCarDetailStart, fetchCarDetailSuccess, fetchCarDetailFailure,
+    fetchBranchesStart, fetchBranchesSuccess, fetchBranchesFailure,
     bookRentalStart, bookRentalSuccess, bookRentalFailure, resetBooking,
+    fetchUserRentalsStart, fetchUserRentalsSuccess, fetchUserRentalsFailure,
 } = rentalSlice.actions
 
 // Plain thunk (no createAsyncThunk) to load cars
-export const fetchCars = (page = 1) => async (dispatch, getState) => {
+export const fetchCars = (options = 1) => async (dispatch, getState) => {
     try {
         dispatch(fetchCarsStart());
         const { pageSize } = getState().rental;
-        const response = await axiosInstance.get(`/cars/?page=${page}`);
+        const { page = 1, startDate, endDate } =
+            typeof options === "number" ? { page: options } : (options || {});
+        const params = new URLSearchParams();
+        params.set("page", String(page));
+        if (startDate && endDate) {
+            params.set("start_date", startDate);
+            params.set("end_date", endDate);
+        }
+        const response = await axiosInstance.get(`/cars/?${params.toString()}`);
         const data = response.data;
         const cars = Array.isArray(data?.results) ? data.results : data;
         const totalCount = typeof data?.count === "number" ? data.count : (Array.isArray(cars) ? cars.length : 0);
@@ -108,11 +148,11 @@ const extractError = (error) => {
     return Object.values(data).flat().join(" ");
 };
 
-export const bookAndPay = ({ car_id, start_date, end_date, payment_method }) => async (dispatch) => {
+export const bookAndPay = ({ car_id, start_date, end_date, dropoff_branch_id, payment_method }) => async (dispatch) => {
     try {
         dispatch(bookRentalStart());
         // Step 1: create rental
-        const rentalRes = await axiosInstance.post("/rental/", { car_id, start_date, end_date });
+        const rentalRes = await axiosInstance.post("/rental/", { car_id, start_date, end_date, dropoff_branch_id });
         const rental = rentalRes.data;
         // Step 2: create payment for that rental
         const paymentRes = await axiosInstance.post("/payment/", {
@@ -137,6 +177,16 @@ export const bookAndPay = ({ car_id, start_date, end_date, payment_method }) => 
     }
 };
 
+export const fetchBranchList = () => async (dispatch) => {
+    try {
+        dispatch(fetchBranchesStart());
+        const response = await axiosInstance.get("/branch-list/");
+        dispatch(fetchBranchesSuccess(Array.isArray(response.data) ? response.data : response.data?.results || []));
+    } catch (error) {
+        dispatch(fetchBranchesFailure(extractError(error)));
+    }
+};
+
 export const executePaypalPayment = ({ paypal_payment_id, payer_id }) => async (dispatch) => {
     try {
         dispatch(bookRentalStart());
@@ -155,6 +205,18 @@ export const fetchCarDetail = (slug) => async (dispatch) => {
     } catch (error) {
         const message = error.response?.data || error.message || "Failed to load car details";
         dispatch(fetchCarDetailFailure(message));
+    }
+};
+
+export const fetchUserRentals = () => async (dispatch) => {
+    try {
+        dispatch(fetchUserRentalsStart());
+        const response = await axiosInstance.get("/user/rental/");
+        const data = response.data;
+        const rentals = Array.isArray(data?.results) ? data.results : (Array.isArray(data) ? data : []);
+        dispatch(fetchUserRentalsSuccess(rentals));
+    } catch (error) {
+        dispatch(fetchUserRentalsFailure(extractError(error)));
     }
 };
 

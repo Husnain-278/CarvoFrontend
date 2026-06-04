@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import Navbar from "../components/Navbar";
-import { fetchCarDetail, bookAndPay, resetBooking } from "../store/features/rentalSlice";
+import { fetchCarDetail, bookAndPay, resetBooking, fetchBranchList } from "../store/features/rentalSlice";
 
 const cloudinaryBase = import.meta.env.VITE_CLOUDINARY_BASE_URL || "";
 
@@ -62,8 +62,16 @@ const SPECS = [
   { label: "Type", key: "car_type", icon: "🚗" },
   { label: "Transmission", key: "transmission", icon: "⚙️" },
   { label: "Fuel Type", key: "fuel_type", icon: "⛽" },
+  { label: "Fuel", key: "fuel", icon: "🧾" },
   { label: "Seats", key: "seats", icon: "💺" },
 ];
+
+const formatSpecValue = (key, value) => {
+  if (key === "fuel") {
+    return value === "included" ? "Included in rental" : "Excluded in rental";
+  }
+  return String(value).replace(/_/g, " ");
+};
 
 const CarDetailPage = () => {
   const { slug } = useParams();
@@ -76,6 +84,9 @@ const CarDetailPage = () => {
     bookingError,
     bookingResult,
     paypalApprovalUrl,
+    branches,
+    branchesStatus,
+    branchesError,
   } = useSelector((state) => state.rental);
 
   const [activeImage, setActiveImage] = useState(0);
@@ -83,6 +94,7 @@ const CarDetailPage = () => {
   const [showBookingForm, setShowBookingForm] = useState(false);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [dropoffBranchId, setDropoffBranchId] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("cash");
 
   const today = new Date().toISOString().split("T")[0];
@@ -104,7 +116,11 @@ const CarDetailPage = () => {
       ? (diffDays * parseFloat(car.price_per_day)).toFixed(2)
       : null;
 
-  const formValid = startDate && endDate && new Date(endDate) >= new Date(startDate);
+  const formValid =
+    startDate &&
+    endDate &&
+    new Date(endDate) >= new Date(startDate) &&
+    Boolean(dropoffBranchId);
 
   useEffect(() => {
     if (slug) {
@@ -118,6 +134,7 @@ const CarDetailPage = () => {
     setStep("dates");
     setStartDate("");
     setEndDate("");
+    setDropoffBranchId("");
     setPaymentMethod("cash");
     dispatch(resetBooking());
   }, [car?.id]);
@@ -126,6 +143,7 @@ const CarDetailPage = () => {
     dispatch(resetBooking());
     setStartDate("");
     setEndDate("");
+    setDropoffBranchId("");
     setPaymentMethod("cash");
     setStep("dates");
     setShowBookingForm(true);
@@ -134,6 +152,7 @@ const CarDetailPage = () => {
   const handleCancel = () => {
     setShowBookingForm(false);
     setStep("dates");
+    setDropoffBranchId("");
     dispatch(resetBooking());
   };
 
@@ -146,12 +165,31 @@ const CarDetailPage = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!formValid || !car) return;
-    dispatch(bookAndPay({ car_id: car.id, start_date: startDate, end_date: endDate, payment_method: paymentMethod }));
+    dispatch(
+      bookAndPay({
+        car_id: car.id,
+        start_date: startDate,
+        end_date: endDate,
+        dropoff_branch_id: Number(dropoffBranchId),
+        payment_method: paymentMethod,
+      })
+    );
   };
 
   const images = car?.images ?? [];
   const activeRawUrl = images[activeImage]?.image ?? null;
   const heroSources = activeRawUrl ? buildHeroSources(activeRawUrl) : null;
+  const currentBranch = car?.current_branch ?? null;
+  const pickupLabel = currentBranch
+    ? [currentBranch.city, currentBranch.address].filter(Boolean).join(" · ")
+    : "";
+  const selectedDropoff = branches.find((branch) => String(branch.id) === String(dropoffBranchId));
+
+  useEffect(() => {
+    if (showBookingForm && branchesStatus === "idle") {
+      dispatch(fetchBranchList());
+    }
+  }, [showBookingForm, branchesStatus, dispatch]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-black text-white">
@@ -279,12 +317,25 @@ const CarDetailPage = () => {
                           {icon} {label}
                         </dt>
                         <dd className="text-sm font-medium capitalize">
-                          {String(car[key]).replace(/_/g, " ")}
+                          {formatSpecValue(key, car[key])}
                         </dd>
                       </div>
                     ) : null
                   )}
                 </dl>
+                {currentBranch && (currentBranch.city || currentBranch.address) && (
+                  <div className="pt-3 border-t border-slate-800 space-y-2">
+                    <p className="text-xs text-slate-400 uppercase tracking-wide">Car Current Location</p>
+                    <div className="text-sm text-slate-200 space-y-1">
+                      {currentBranch.city && (
+                        <p className="font-medium">{currentBranch.city}</p>
+                      )}
+                      {currentBranch.address && (
+                        <p className="text-slate-400">{currentBranch.address}</p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </section>
 
               {/* Description */}
@@ -403,6 +454,46 @@ const CarDetailPage = () => {
                     </div>
                   </div>
 
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <label className="text-xs text-slate-400 uppercase tracking-wide" htmlFor="pickup_location">
+                        Pickup location
+                      </label>
+                      <input
+                        id="pickup_location"
+                        type="text"
+                        value={pickupLabel || "Not set"}
+                        disabled
+                        className="w-full rounded-xl border border-slate-700 bg-slate-900/60 text-slate-300 px-4 py-2.5 text-sm focus:outline-none"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs text-slate-400 uppercase tracking-wide" htmlFor="dropoff_branch">
+                        Dropoff location
+                      </label>
+                      <select
+                        id="dropoff_branch"
+                        value={dropoffBranchId}
+                        onChange={(e) => setDropoffBranchId(e.target.value)}
+                        required
+                        className="w-full rounded-xl border border-slate-700 bg-slate-800/80 text-white px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                      >
+                        <option value="">Select dropoff branch</option>
+                        {branches.map((branch) => (
+                          <option key={branch.id} value={branch.id}>
+                            {[branch.city, branch.address].filter(Boolean).join(" · ")}
+                          </option>
+                        ))}
+                      </select>
+                      {branchesStatus === "loading" && (
+                        <p className="text-xs text-slate-500">Loading branches…</p>
+                      )}
+                      {branchesStatus === "failed" && branchesError && (
+                        <p className="text-xs text-red-300">{branchesError}</p>
+                      )}
+                    </div>
+                  </div>
+
                   {estimatedTotal && (
                     <div className="rounded-xl border border-slate-700 bg-slate-800/60 px-4 py-3 flex items-center justify-between text-sm">
                       <span className="text-slate-400">
@@ -441,6 +532,18 @@ const CarDetailPage = () => {
                     <div className="flex justify-between">
                       <span className="text-slate-400">Dates</span>
                       <span className="font-medium">{startDate} → {endDate}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Pickup</span>
+                      <span className="font-medium">{pickupLabel || "-"}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Dropoff</span>
+                      <span className="font-medium">
+                        {selectedDropoff
+                          ? [selectedDropoff.city, selectedDropoff.address].filter(Boolean).join(" · ")
+                          : "-"}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-400">{diffDays} day{diffDays !== 1 ? "s" : ""} × ${car.price_per_day}</span>
