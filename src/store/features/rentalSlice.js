@@ -9,6 +9,7 @@ const rentalSlice = createSlice({
                 status: "idle",
                 error: null,
                 page: 1,
+                lastPage: 1,
                 totalPages: 1,
                 pageSize: 9,
                 totalCount: 0,
@@ -21,7 +22,6 @@ const rentalSlice = createSlice({
                 bookingStatus: "idle",
                 bookingError: null,
                 bookingResult: null,
-                paypalApprovalUrl: null,
                 userRentals: [],
                 userRentalsStatus: "idle",
                 userRentalsError: null,
@@ -74,12 +74,10 @@ const rentalSlice = createSlice({
                     state.bookingStatus = "loading";
                     state.bookingError = null;
                     state.bookingResult = null;
-                    state.paypalApprovalUrl = null;
                 },
                 bookRentalSuccess: (state, action) => {
                     state.bookingStatus = "succeeded";
                     state.bookingResult = action.payload;
-                    state.paypalApprovalUrl = action.payload?.approval_url ?? null;
                 },
                 bookRentalFailure: (state, action) => {
                     state.bookingStatus = "failed";
@@ -89,7 +87,6 @@ const rentalSlice = createSlice({
                     state.bookingStatus = "idle";
                     state.bookingError = null;
                     state.bookingResult = null;
-                    state.paypalApprovalUrl = null;
                 },
                 fetchUserRentalsStart: (state) => {
                     state.userRentalsStatus = "loading";
@@ -103,6 +100,9 @@ const rentalSlice = createSlice({
                     state.userRentalsStatus = "failed";
                     state.userRentalsError = action.payload || "Unable to fetch rentals";
                 },
+                setLastPage: (state, action) => {
+                    state.lastPage = action.payload;
+                },
         }
 })
 
@@ -113,6 +113,7 @@ export const {
     fetchBranchesStart, fetchBranchesSuccess, fetchBranchesFailure,
     bookRentalStart, bookRentalSuccess, bookRentalFailure, resetBooking,
     fetchUserRentalsStart, fetchUserRentalsSuccess, fetchUserRentalsFailure,
+    setLastPage,
 } = rentalSlice.actions
 
 // Plain thunk (no createAsyncThunk) to load cars
@@ -161,13 +162,17 @@ export const bookAndPay = ({ car_id, start_date, end_date, dropoff_branch_id, pa
         });
         const paymentData = paymentRes.data;
 
-        if (payment_method === "paypal" && paymentData.approval_url) {
-            // Store the URL in state, then component will redirect
+        if (payment_method === "stripe" && paymentData.checkout_url) {
+            // Mark that user is redirecting to Stripe (use localStorage for cross-domain persistence)
+            localStorage.setItem("stripe_redirect", "true");
+            // Redirect to Stripe checkout
             dispatch(bookRentalSuccess({
                 rental,
                 payment: paymentData,
-                approval_url: paymentData.approval_url,
+                checkout_url: paymentData.checkout_url,
             }));
+            // Redirect to Stripe checkout URL
+            window.location.href = paymentData.checkout_url;
         } else {
             // Cash: backend already set rental active
             dispatch(bookRentalSuccess({ rental: { ...rental, status: "active" }, payment: paymentData }));
@@ -184,16 +189,6 @@ export const fetchBranchList = () => async (dispatch) => {
         dispatch(fetchBranchesSuccess(Array.isArray(response.data) ? response.data : response.data?.results || []));
     } catch (error) {
         dispatch(fetchBranchesFailure(extractError(error)));
-    }
-};
-
-export const executePaypalPayment = ({ paypal_payment_id, payer_id }) => async (dispatch) => {
-    try {
-        dispatch(bookRentalStart());
-        const res = await axiosInstance.post("/payment/execute/", { paypal_payment_id, payer_id });
-        dispatch(bookRentalSuccess({ detail: res.data.detail }));
-    } catch (error) {
-        dispatch(bookRentalFailure(extractError(error)));
     }
 };
 

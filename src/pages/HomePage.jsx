@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import Navbar from "../components/Navbar";
-import { fetchCars } from "../store/features/rentalSlice";
+import { fetchCars, setLastPage } from "../store/features/rentalSlice";
 
 const cloudinaryBase = import.meta.env.VITE_CLOUDINARY_BASE_URL || "";
 
@@ -43,18 +43,23 @@ const buildImageSources = (url) => {
 
 const HomePage = () => {
   const dispatch = useDispatch();
-  const { cars, status, error, page, totalPages } = useSelector((state) => state.rental);
+  const { cars, status, error, page, lastPage, totalPages } = useSelector((state) => state.rental);
   const [filters, setFilters] = useState({ startDate: "", endDate: "" });
   const [appliedFilters, setAppliedFilters] = useState({ startDate: "", endDate: "" });
   const [searchError, setSearchError] = useState("");
+  const [isInitialMount, setIsInitialMount] = useState(true);
   const isResetDisabled = !appliedFilters.startDate && !appliedFilters.endDate;
 
   useEffect(() => {
-    dispatch(fetchCars({ page: 1 }));
-  }, [dispatch]);
+    if (isInitialMount) {
+      dispatch(fetchCars({ page: lastPage || 1 }));
+      setIsInitialMount(false);
+    }
+  }, [dispatch, isInitialMount, lastPage]);
 
   const handlePageChange = (nextPage) => {
     if (nextPage < 1 || nextPage > totalPages) return;
+    dispatch(setLastPage(nextPage));
     dispatch(fetchCars({ page: nextPage, ...appliedFilters }));
   };
 
@@ -71,6 +76,7 @@ const HomePage = () => {
     }
     setSearchError("");
     setAppliedFilters(filters);
+    dispatch(setLastPage(1));
     dispatch(fetchCars({ page: 1, ...filters }));
   };
 
@@ -79,6 +85,7 @@ const HomePage = () => {
     setFilters(cleared);
     setAppliedFilters(cleared);
     setSearchError("");
+    dispatch(setLastPage(1));
     dispatch(fetchCars({ page: 1 }));
   };
 

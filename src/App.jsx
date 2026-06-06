@@ -11,6 +11,7 @@ import PaymentSuccessPage from './pages/PaymentSuccessPage'
 import PaymentCancelPage from './pages/PaymentCancelPage'
 import UserProfilePage from './pages/UserProfilePage'
 import UserRentalsPage from './pages/UserRentalsPage'
+import ScrollToTop from './components/ScrollToTop'
 function App() {
 
   const { isAuthenticated } = useSelector((state) => state.auth)
@@ -25,6 +26,7 @@ function App() {
 
   return (
     <>
+    <ScrollToTop />
     <Routes>
       <Route path='login/' element={<PublicOnly><LoginPage/></PublicOnly>}/>
       <Route path='register/' element={<PublicOnly><RegisterPage/></PublicOnly>}/>

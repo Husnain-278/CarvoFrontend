@@ -11,9 +11,6 @@ const authSlice = createSlice({
             email : localStorage.getItem('email') || null,
             loading: false,
             error: null,
-            profile: null,
-            profileStatus: 'idle',
-            profileError: null,
         },
     reducers:{
         login: (state, action)=>{
@@ -42,18 +39,6 @@ const authSlice = createSlice({
             localStorage.removeItem('email')
         },
         dashboard: (state, action)=>{},
-        fetchProfileStart: (state) => {
-            state.profileStatus = 'loading'
-            state.profileError = null
-        },
-        fetchProfileSuccess: (state, action) => {
-            state.profileStatus = 'succeeded'
-            state.profile = action.payload
-        },
-        fetchProfileFailure: (state, action) => {
-            state.profileStatus = 'failed'
-            state.profileError = action.payload || 'Unable to load profile'
-        },
     }
 })
 
@@ -61,9 +46,6 @@ const authSlice = createSlice({
     login,
     logout,
     dashboard,
-    fetchProfileStart,
-    fetchProfileSuccess,
-    fetchProfileFailure,
  } = authSlice.actions
  export default authSlice.reducer
 
@@ -73,14 +55,4 @@ const extractError = (error) => {
     if (typeof data === 'string') return data
     if (data.detail) return data.detail
     return Object.values(data).flat().join(' ')
-}
-
-export const fetchUserProfile = () => async (dispatch) => {
-    try {
-        dispatch(fetchProfileStart())
-        const response = await axiosInstance.get('/user-profile/')
-        dispatch(fetchProfileSuccess(response.data))
-    } catch (error) {
-        dispatch(fetchProfileFailure(extractError(error)))
-    }
 }

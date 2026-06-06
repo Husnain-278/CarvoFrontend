@@ -83,7 +83,6 @@ const CarDetailPage = () => {
     bookingStatus,
     bookingError,
     bookingResult,
-    paypalApprovalUrl,
     branches,
     branchesStatus,
     branchesError,
@@ -98,13 +97,6 @@ const CarDetailPage = () => {
   const [paymentMethod, setPaymentMethod] = useState("cash");
 
   const today = new Date().toISOString().split("T")[0];
-
-  // Redirect to PayPal approval page when URL is available
-  useEffect(() => {
-    if (paypalApprovalUrl) {
-      window.location.href = paypalApprovalUrl;
-    }
-  }, [paypalApprovalUrl]);
 
   // Compute number of days and estimated total
   const diffDays =
@@ -371,7 +363,7 @@ const CarDetailPage = () => {
               </div>
 
               {/* ── Success (cash) ── */}
-              {bookingStatus === "succeeded" && bookingResult && !bookingResult.approval_url && (
+              {bookingStatus === "succeeded" && bookingResult && !bookingResult.checkout_url && (
                 <div className="rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-5 py-4 space-y-2">
                   <p className="text-emerald-300 font-semibold text-base">Booking confirmed! 🎉</p>
                   <p className="text-slate-300 text-sm">
@@ -405,14 +397,14 @@ const CarDetailPage = () => {
                 </div>
               )}
 
-              {/* ── PayPal redirect pending ── */}
-              {bookingStatus === "succeeded" && bookingResult?.approval_url && (
+              {/* ── Stripe redirect pending ── */}
+              {bookingStatus === "succeeded" && bookingResult?.checkout_url && (
                 <div className="rounded-xl border border-blue-500/40 bg-blue-500/10 px-5 py-4 flex items-center gap-3 text-blue-200">
                   <svg className="animate-spin h-5 w-5 text-blue-300 flex-shrink-0" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
                   </svg>
-                  <span className="text-sm font-medium">Redirecting you to PayPal to complete payment…</span>
+                  <span className="text-sm font-medium">Redirecting you to Stripe to complete payment…</span>
                 </div>
               )}
 
@@ -557,7 +549,7 @@ const CarDetailPage = () => {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {[
                         { value: "cash", label: "Cash", desc: "Pay on pickup / delivery", available: true },
-                        { value: "paypal", label: "PayPal", desc: "Pay securely via PayPal", available: true },
+                        { value: "stripe", label: "Credit / Debit Card", desc: "Pay securely via Stripe", available: true },
                       ].map(({ value, label, desc, available }) => (
                         <label
                           key={value}
@@ -601,8 +593,8 @@ const CarDetailPage = () => {
                       className="flex-1 py-3 rounded-xl bg-emerald-500 text-black font-bold hover:bg-emerald-400 active:scale-95 transition disabled:bg-slate-700 disabled:text-slate-500 disabled:cursor-not-allowed"
                     >
                       {bookingStatus === "loading"
-                        ? (paymentMethod === "paypal" ? "Redirecting to PayPal…" : "Confirming…")
-                        : (paymentMethod === "paypal" ? "Pay with PayPal →" : "Confirm Booking")}
+                        ? (paymentMethod === "stripe" ? "Redirecting to Stripe…" : "Confirming…")
+                        : (paymentMethod === "stripe" ? "Pay with Stripe →" : "Confirm Booking")}
                     </button>
                     <button
                       type="button"
