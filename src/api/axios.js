@@ -1,7 +1,10 @@
 import axios from "axios";
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ||
+  "http://carvo-carvo-backend-xgt59n-df57cd-67-205-145-214.sslip.io/api/v1";
+
 const axiosInstance = axios.create({
-    baseURL: 'http://127.0.0.1:8000/api/v1',
+    baseURL: API_BASE_URL,
     headers:{
         'Content-Type': 'application/json'
     },
@@ -19,7 +22,7 @@ const refreshToken = async () => {
   const refresh = localStorage.getItem("refreshToken");
 
     const response = await axios.post(
-        "http://127.0.0.1:8000/api/v1/token/refresh/",
+        `${API_BASE_URL}/token/refresh/`,
         { refresh },
         { timeout: 10000 }
     );
